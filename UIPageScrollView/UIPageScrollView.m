@@ -9,11 +9,6 @@
 #import "UIPageScrollView.h"
 #import "UIColor+CustomColor.h"
 
-typedef NS_ENUM(NSUInteger, ScrollDirection) {
-  ScrollDirectionFromRighToLeft,
-  ScrollDirectionFromLeftToRight
-};
-
 static const NSTimeInterval AutoPlayTimeInterval = 3.5f;
 static const CGFloat PageControlMarginBottom = 14.0f;
 static const CGFloat PageControlHeight = 6.0f;
@@ -28,9 +23,6 @@ static const CGFloat PageControlHeight = 6.0f;
 
   UIScrollView *autoScrollView;
   UIPageControl *pageControl;
-
-  CGFloat lastContentOffsetX;
-  ScrollDirection scrollDirection;
 }
 
 @property(nonatomic, assign, readwrite) NSUInteger currentPageIndex;
@@ -126,24 +118,23 @@ static const CGFloat PageControlHeight = 6.0f;
 }
 
 - (void)startAutoPlay {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    [repeatingTimer invalidate];
-    NSTimer *timer =
-        [NSTimer scheduledTimerWithTimeInterval:AutoPlayTimeInterval
-                                         target:self
-                                       selector:@selector(turnPage)
-                                       userInfo:nil
-                                        repeats:YES];
 
-    repeatingTimer = timer;
-  });
+  [repeatingTimer invalidate];
+  NSTimer *timer = [NSTimer timerWithTimeInterval:AutoPlayTimeInterval
+                                           target:self
+                                         selector:@selector(turnPage)
+                                         userInfo:nil
+                                          repeats:YES];
+
+  [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
+
+  repeatingTimer = timer;
 }
 
 - (void)stopAutoPlay {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    [repeatingTimer invalidate];
-    repeatingTimer = nil;
-  });
+
+  [repeatingTimer invalidate];
+  repeatingTimer = nil;
 }
 
 - (void)imageViewDidPress:(UITapGestureRecognizer *)gesture {
@@ -173,29 +164,24 @@ static const CGFloat PageControlHeight = 6.0f;
   [self stopAutoPlay];
 }
 
-- (void)scrollViewDidEndDragging:(UIScrollView *)scrollView
-                  willDecelerate:(BOOL)decelerate {
+- (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
 
-  if (scrollDirection == ScrollDirectionFromLeftToRight) {
-    [self scrollPageTo:(self.currentPageIndex - 1)animated:YES];
-  } else if (scrollDirection == ScrollDirectionFromRighToLeft) {
-    [self scrollPageTo:(self.currentPageIndex + 1)animated:YES];
-  }
+  [self scrollPageTo:[self getCurrentPage] animated:YES];
 
   [self startAutoPlay];
 }
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
 
-  if (lastContentOffsetX > scrollView.contentOffset.x) {
-    scrollDirection = ScrollDirectionFromLeftToRight;
-  } else if (lastContentOffsetX < scrollView.contentOffset.x) {
-    scrollDirection = ScrollDirectionFromRighToLeft;
-  }
-
-  lastContentOffsetX = scrollView.contentOffset.x;
+  pageControl.currentPage = [self getCurrentPage];
 }
 
+- (NSUInteger)getCurrentPage {
+  NSUInteger currentPage =
+      floor((autoScrollView.contentOffset.x - WIDTH / 2) / WIDTH) + 1;
+
+  return currentPage;
+}
 - (void)dealloc {
   [self stopAutoPlay];
 }
